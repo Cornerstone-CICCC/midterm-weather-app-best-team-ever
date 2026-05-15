@@ -1,0 +1,84 @@
+@use "./variables" as *;
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: $background;
+  color: $text;
+}
+
+.app {
+  padding: 2rem;
+}
+
+.weather-container {
+  max-width: 1200px;
+  margin: auto;
+}
+
+.card {
+  background: $card;
+  padding: 1rem;
+  border-radius: 16px;
+  margin-bottom: 1rem;
+}
+
+.daily-grid,
+.hourly-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.daily-grid {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.hourly-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 375px) {
+  .daily-grid,
+  .hourly-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.search input,
+.favorites select {
+  width: 100%;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  font-size: 1rem;
+}
+
+#suggestions {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.suggestion-item {
+  border: none;
+  padding: 1rem;
+  border-radius: 12px;
+  cursor: pointer;
+  background: #e2e8f0;
+  text-align: left;
+}
+
+.suggestion-item:hover {
+  background: #cbd5e1;
+}
+
+.daily-card {
+  cursor: pointer;
+}
+
+.hourly-grid {
+  grid-template-columns: repeat(4, 1fr);
+}

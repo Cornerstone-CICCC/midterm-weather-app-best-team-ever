@@ -1,0 +1,37 @@
+---
+import "../styles/global.scss";
+
+import Search from "../components/Search.astro";
+import Favorites from "../components/Favorites.astro";
+import CurrentWeather from "../components/CurrentWeather.astro";
+import DailyForecast from "../components/DailyForecast.astro";
+import HourlyForecast from "../components/HourlyForecast.astro";
+---
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Weather App</title>
+  </head>
+
+  <body>
+    <main class="app">
+      <section class="weather-container">
+        <Search />
+
+        <Favorites />
+
+        <CurrentWeather />
+
+        <DailyForecast />
+
+        <HourlyForecast />
+      </section>
+    </main>
+
+    <script>
+      import "../scripts/app.ts";
+    </script>
+  </body>
+</html>

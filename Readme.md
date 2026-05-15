@@ -66,7 +66,7 @@ Wrap up with a presentation covering: what you built, how you split work, what y
 - Lean on Astro's component model + props instead of manual DOM manipulation where possible.
 - Stuck? Spend max **2–3 hours** before escalating: Google → teammate → instructor.
 
-<hr> 
+<hr>
 
 # APIs
 

@@ -30,9 +30,45 @@ function renderCurrentWeather(cityName: string, data: any) {
 
   if (!cityElement || !tempElement || !conditionElement) return;
 
+  const weather = getWeatherInfo(data.current.weather_code);
+
   cityElement.textContent = cityName;
-  tempElement.textContent = `${data.current_weather.temperature}°C`;
-  conditionElement.textContent = `Wind: ${data.current_weather.windspeed} km/h`;
+  tempElement.textContent = `${Math.round(data.current.temperature_2m)}°C`;
+  conditionElement.textContent = `${weather.icon} ${weather.label} • Wind: ${Math.round(
+    data.current.wind_speed_10m
+  )} km/h`;
+}
+
+function getWeatherInfo(code: number) {
+  if (code === 0) {
+    return { icon: "☀️", label: "Sunny" };
+  }
+
+  if ([1, 2, 3].includes(code)) {
+    return { icon: "⛅", label: "Partly Cloudy" };
+  }
+
+  if ([45, 48].includes(code)) {
+    return { icon: "🌫️", label: "Foggy" };
+  }
+
+  if ([51, 53, 55].includes(code)) {
+    return { icon: "🌦️", label: "Drizzle" };
+  }
+
+  if ([61, 63, 65, 80, 81, 82].includes(code)) {
+    return { icon: "🌧️", label: "Rainy" };
+  }
+
+  if ([71, 73, 75, 77, 85, 86].includes(code)) {
+    return { icon: "❄️", label: "Snowy" };
+  }
+
+  if ([95, 96, 99].includes(code)) {
+    return { icon: "⛈️", label: "Stormy" };
+  }
+
+  return { icon: "🌤️", label: "Weather" };
 }
 
 function renderDailyForecast(data: any) {
@@ -43,17 +79,49 @@ function renderDailyForecast(data: any) {
   container.innerHTML = "";
 
   data.daily.time.forEach((day: string, index: number) => {
-    const card = document.createElement("button");
+    const weather = getWeatherInfo(data.daily.weather_code[index]);
 
-    card.className = "card daily-card";
+    const card = document.createElement("button");
+    card.className = "daily-day";
+
+    if (index === 0) {
+      card.classList.add("active");
+    }
+
+    const date = new Date(day);
+
+    const weekday = date.toLocaleDateString("en-US", {
+      weekday: "long",
+    });
+
+    const formattedDate = date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
 
     card.innerHTML = `
-      <h3>${day}</h3>
-      <p>Max: ${data.daily.temperature_2m_max[index]}°C</p>
-      <p>Min: ${data.daily.temperature_2m_min[index]}°C</p>
+      <h3>${weekday}</h3>
+
+      <p class="date">${formattedDate}</p>
+
+      <div class="weather-icon">${weather.icon}</div>
+
+      <p class="weather-label">${weather.label}</p>
+
+      <p class="daily-temp">
+        ${Math.round(data.daily.temperature_2m_min[index])}–${Math.round(
+          data.daily.temperature_2m_max[index]
+        )}°C
+      </p>
     `;
 
     card.addEventListener("click", () => {
+      document.querySelectorAll(".daily-day").forEach((item) => {
+        item.classList.remove("active");
+      });
+
+      card.classList.add("active");
+
       renderHourlyForecast(data, day);
     });
 
@@ -63,60 +131,65 @@ function renderDailyForecast(data: any) {
 
 function renderHourlyForecast(data: any, selectedDay: string) {
   const container = document.querySelector("#hourlyForecast");
+  const title = document.querySelector("#hourlyTitle");
 
   if (!container) return;
 
   container.innerHTML = "";
 
+  if (title) {
+    const date = new Date(selectedDay);
+
+    title.textContent = `3 Hour Range - ${date.toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+    })}`;
+  }
+
   data.hourly.time.forEach((time: string, index: number) => {
-    if (time.startsWith(selectedDay)) {
-      const hour = new Date(time).getHours();
+    if (!time.startsWith(selectedDay)) return;
 
-      if (hour % 3 === 0) {
-        const card = document.createElement("div");
+    const hourNumber = Number(time.split("T")[1].slice(0, 2));
 
-        card.className = "card hourly-card";
+    if (hourNumber % 3 !== 0) return;
 
-        card.innerHTML = `
-          <p>${hour}:00</p>
-          <p>${data.hourly.temperature_2m[index]}°C</p>
-        `;
+    const weather = getWeatherInfo(data.hourly.weather_code[index]);
 
-        container.appendChild(card);
-      }
-    }
+    const card = document.createElement("div");
+    card.className = "hourly-item";
+
+    card.innerHTML = `
+      <p class="hour">${time.split("T")[1].slice(0, 5)}</p>
+
+      <div class="weather-icon small">${weather.icon}</div>
+
+      <p class="weather-label">${weather.label}</p>
+
+      <p class="hourly-temp">
+        ${Math.round(data.hourly.temperature_2m[index])}°C
+      </p>
+    `;
+
+    container.appendChild(card);
   });
 }
 
 function getPlaceName(place: any) {
-  return (
-    place.name ||
-    place.city ||
-    place.label ||
-    place.displayName ||
-    "Selected City"
-  );
+  return place.name || place.city || place.label || "Selected City";
 }
 
 function getPlaceLatitude(place: any) {
-  return (
-    place.coordinates?.lat ??
-    place.coordinates?.latitude ??
-    place.lat ??
-    place.latitude ??
-    place.geometry?.location?.lat
-  );
+  return place.coordinates?.lat ?? place.lat ?? place.latitude;
 }
 
 function getPlaceLongitude(place: any) {
   return (
     place.coordinates?.lng ??
     place.coordinates?.lon ??
-    place.coordinates?.longitude ??
     place.lng ??
     place.lon ??
-    place.longitude ??
-    place.geometry?.location?.lng
+    place.longitude
   );
 }
 
@@ -149,11 +222,8 @@ function setupSearch() {
           const lat = getPlaceLatitude(place);
           const lon = getPlaceLongitude(place);
 
-          console.log("Selected place:", place);
-          console.log("Coordinates:", lat, lon);
-
           if (!lat || !lon) {
-            console.error("Missing coordinates from PlaceKit result:", place);
+            console.error("Missing coordinates:", place);
             return;
           }
 

@@ -1,5 +1,10 @@
-import { getWeather } from "./weather";
+import { getWeather, type OpenMeteoForecast } from "./weather";
 import { searchCities } from "./places";
+import {
+  formatObservationTime,
+  formatWindLine,
+  labelForWmoCode,
+} from "./weatherCondition";
 
 const VANCOUVER = {
   name: "Vancouver",
@@ -8,6 +13,20 @@ const VANCOUVER = {
 };
 
 let selectedCity = VANCOUVER;
+
+type SavedCity = { name: string; lat: number; lon: number };
+
+function roundCoord(n: number): number {
+  return Math.round(n * 1e4) / 1e4;
+}
+
+function sameCity(a: SavedCity, b: SavedCity): boolean {
+  return (
+    a.name === b.name &&
+    roundCoord(a.lat) === roundCoord(b.lat) &&
+    roundCoord(a.lon) === roundCoord(b.lon)
+  );
+}
 
 async function loadWeather(cityName: string, lat: number, lon: number) {
   try {
@@ -20,22 +39,60 @@ async function loadWeather(cityName: string, lat: number, lon: number) {
     renderHourlyForecast(data, data.daily.time[0]);
   } catch (error) {
     console.error("Weather error:", error);
+    showCurrentWeatherError(cityName);
   }
 }
 
-function renderCurrentWeather(cityName: string, data: any) {
-  const cityElement = document.querySelector("#cityName");
-  const tempElement = document.querySelector("#currentTemp");
-  const conditionElement = document.querySelector("#currentCondition");
-
-  if (!cityElement || !tempElement || !conditionElement) return;
-
-  cityElement.textContent = cityName;
-  tempElement.textContent = `${data.current_weather.temperature}°C`;
-  conditionElement.textContent = `Wind: ${data.current_weather.windspeed} km/h`;
+function setCurrentWeatherState(state: "loading" | "ready" | "error") {
+  const panel = document.querySelector(".current-weather") as HTMLElement | null;
+  if (panel) panel.dataset.state = state;
 }
 
-function renderDailyForecast(data: any) {
+function showCurrentWeatherError(cityName: string) {
+  setCurrentWeatherState("error");
+
+  const cityEl = document.querySelector("#current-city-heading");
+  const tempEl = document.querySelector("#currentTemp");
+  const summaryEl = document.querySelector("#currentSummary");
+  const windEl = document.querySelector("#currentWind");
+  const updatedEl = document.querySelector("#currentUpdated");
+
+  if (cityEl) cityEl.textContent = cityName;
+  if (tempEl) tempEl.textContent = "—";
+  if (summaryEl) summaryEl.textContent = "Weather data unavailable. Try again soon.";
+  if (windEl) windEl.textContent = "—";
+  if (updatedEl) updatedEl.textContent = "—";
+}
+
+function renderCurrentWeather(cityName: string, data: OpenMeteoForecast) {
+  const cw = data.current_weather;
+
+  const cityElement = document.querySelector("#current-city-heading");
+  const tempElement = document.querySelector("#currentTemp");
+  const summaryElement = document.querySelector("#currentSummary");
+  const windElement = document.querySelector("#currentWind");
+  const updatedElement = document.querySelector("#currentUpdated");
+
+  if (
+    !cityElement ||
+    !tempElement ||
+    !summaryElement ||
+    !windElement ||
+    !updatedElement
+  ) {
+    return;
+  }
+
+  cityElement.textContent = cityName;
+  tempElement.textContent = `${Math.round(cw.temperature)}°C`;
+  summaryElement.textContent = labelForWmoCode(cw.weathercode);
+  windElement.textContent = formatWindLine(cw.windspeed, cw.winddirection);
+  updatedElement.textContent = formatObservationTime(cw.time);
+  setCurrentWeatherState("ready");
+  syncFavoriteButton();
+}
+
+function renderDailyForecast(data: OpenMeteoForecast) {
   const container = document.querySelector("#dailyForecast");
 
   if (!container) return;
@@ -61,7 +118,7 @@ function renderDailyForecast(data: any) {
   });
 }
 
-function renderHourlyForecast(data: any, selectedDay: string) {
+function renderHourlyForecast(data: OpenMeteoForecast, selectedDay: string) {
   const container = document.querySelector("#hourlyForecast");
 
   if (!container) return;
@@ -121,70 +178,241 @@ function getPlaceLongitude(place: any) {
 }
 
 function setupSearch() {
-  const input = document.querySelector("#cityInput") as HTMLInputElement;
-  const suggestions = document.querySelector("#suggestions");
+  const input = document.querySelector("#cityInput") as HTMLInputElement | null;
+  const listEl = document.querySelector("#suggestions") as HTMLElement | null;
+  const searchRoot = input?.closest(".search") ?? null;
 
-  if (!input || !suggestions) return;
+  if (!input || !listEl) return;
 
-  input.addEventListener("input", async () => {
-    const query = input.value.trim();
+  input.setAttribute("aria-autocomplete", "list");
+  input.setAttribute("aria-controls", "suggestions");
+  input.setAttribute("aria-expanded", "false");
 
-    suggestions.innerHTML = "";
+  listEl.setAttribute("role", "listbox");
+  listEl.setAttribute("aria-label", "City suggestions");
 
-    if (query.length < 2) return;
+  const placekitOk = Boolean(import.meta.env.PUBLIC_PLACEKIT_API_KEY);
+
+  let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+  let fetchAbort: AbortController | undefined;
+  let suggestionPlaces: unknown[] = [];
+  let activeIndex = -1;
+
+  function setListOpen(open: boolean) {
+    input.setAttribute("aria-expanded", open ? "true" : "false");
+    listEl.hidden = !open;
+  }
+
+  function clearSuggestionsUi() {
+    listEl.innerHTML = "";
+    suggestionPlaces = [];
+    activeIndex = -1;
+    setListOpen(false);
+    input.removeAttribute("aria-activedescendant");
+  }
+
+  function setActiveIndex(next: number) {
+    const buttons = listEl.querySelectorAll<HTMLButtonElement>(".suggestion-item");
+    if (buttons.length === 0) return;
+
+    activeIndex = ((next % buttons.length) + buttons.length) % buttons.length;
+
+    buttons.forEach((btn, i) => {
+      btn.classList.toggle("suggestion-item--active", i === activeIndex);
+      btn.tabIndex = -1;
+    });
+
+    if (activeIndex >= 0) {
+      input.setAttribute("aria-activedescendant", `suggestion-${activeIndex}`);
+    } else {
+      input.removeAttribute("aria-activedescendant");
+    }
+
+    buttons[activeIndex]?.scrollIntoView({ block: "nearest" });
+  }
+
+  function applySelection(place: unknown) {
+    const cityName = getPlaceName(place);
+    const lat = getPlaceLatitude(place);
+    const lon = getPlaceLongitude(place);
+
+    if (lat == null || lon == null) {
+      console.warn("PlaceKit result missing coordinates:", place);
+      return;
+    }
+
+    input.value = cityName;
+    clearSuggestionsUi();
+    loadWeather(cityName, Number(lat), Number(lon));
+  }
+
+  function renderSuggestionButtons(places: unknown[]) {
+    listEl.innerHTML = "";
+    suggestionPlaces = places;
+    activeIndex = -1;
+    input.removeAttribute("aria-activedescendant");
+
+    if (places.length === 0) {
+      setListOpen(false);
+      return;
+    }
+
+    places.forEach((place, index) => {
+      const button = document.createElement("button");
+      const cityName = getPlaceName(place);
+      const country =
+        (place as { country?: string }).country ||
+        (place as { countryCode?: string }).countryCode ||
+        "";
+
+      button.type = "button";
+      button.className = "suggestion-item";
+      button.setAttribute("role", "option");
+      button.dataset.index = String(index);
+      button.id = `suggestion-${index}`;
+      button.textContent = country ? `${cityName}, ${country}` : cityName;
+      button.tabIndex = -1;
+
+      button.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+      });
+
+      button.addEventListener("click", () => {
+        applySelection(place);
+      });
+
+      listEl.appendChild(button);
+    });
+
+    setListOpen(true);
+  }
+
+  async function fetchSuggestions(query: string) {
+    if (!placekitOk) {
+      console.warn(
+        "PlaceKit: set PUBLIC_PLACEKIT_API_KEY in .env for city search."
+      );
+      clearSuggestionsUi();
+      return;
+    }
+
+    fetchAbort?.abort();
+    fetchAbort = new AbortController();
 
     try {
-      const data = await searchCities(query);
+      const data = await searchCities(query, fetchAbort.signal);
 
-      data.results.forEach((place: any) => {
-        const button = document.createElement("button");
+      const results = Array.isArray(data.results) ? data.results : [];
 
-        const cityName = getPlaceName(place);
-        const country = place.country || place.countryCode || "";
-
-        button.className = "suggestion-item";
-        button.textContent = country ? `${cityName}, ${country}` : cityName;
-
-        button.addEventListener("click", () => {
-          const lat = getPlaceLatitude(place);
-          const lon = getPlaceLongitude(place);
-
-          console.log("Selected place:", place);
-          console.log("Coordinates:", lat, lon);
-
-          if (!lat || !lon) {
-            console.error("Missing coordinates from PlaceKit result:", place);
-            return;
-          }
-
-          input.value = cityName;
-          suggestions.innerHTML = "";
-
-          loadWeather(cityName, Number(lat), Number(lon));
-        });
-
-        suggestions.appendChild(button);
-      });
+      renderSuggestionButtons(results);
     } catch (error) {
+      if ((error as Error).name === "AbortError") return;
+
       console.error("PlaceKit error:", error);
+      clearSuggestionsUi();
+    }
+  }
+
+  function scheduleFetch(raw: string) {
+    const query = raw.trim();
+
+    clearTimeout(debounceTimer);
+    fetchAbort?.abort();
+
+    if (query.length < 2) {
+      clearSuggestionsUi();
+      return;
+    }
+
+    debounceTimer = setTimeout(() => {
+      void fetchSuggestions(query);
+    }, 300);
+  }
+
+  clearSuggestionsUi();
+
+  input.addEventListener("input", () => {
+    scheduleFetch(input.value);
+  });
+
+  input.addEventListener("keydown", (e) => {
+    const open = !listEl.hidden && suggestionPlaces.length > 0;
+
+    if (e.key === "Escape") {
+      clearSuggestionsUi();
+      return;
+    }
+
+    if (!open) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex(activeIndex < 0 ? 0 : activeIndex + 1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex(activeIndex < 0 ? suggestionPlaces.length - 1 : activeIndex - 1);
+    } else if (e.key === "Enter" && activeIndex >= 0) {
+      const place = suggestionPlaces[activeIndex];
+      if (place) {
+        e.preventDefault();
+        applySelection(place);
+      }
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!searchRoot?.contains(e.target as Node)) {
+      clearSuggestionsUi();
     }
   });
 }
 
-function getFavorites() {
-  return JSON.parse(localStorage.getItem("favorites") || "[]");
+function getFavorites(): SavedCity[] {
+  try {
+    const raw = localStorage.getItem("favorites");
+    if (!raw) return [];
+    const list = JSON.parse(raw) as unknown;
+    return Array.isArray(list) ? (list as SavedCity[]) : [];
+  } catch {
+    return [];
+  }
 }
 
-function saveFavorite() {
+function setFavorites(cities: SavedCity[]) {
+  localStorage.setItem("favorites", JSON.stringify(cities));
+}
+
+function isFavoriteCity(city: SavedCity): boolean {
+  return getFavorites().some((c) => sameCity(c, city));
+}
+
+function syncFavoriteButton() {
+  const favoriteBtn = document.querySelector("#favoriteBtn") as HTMLButtonElement | null;
+  if (!favoriteBtn) return;
+
+  const saved = isFavoriteCity(selectedCity);
+
+  favoriteBtn.textContent = saved ? "★" : "☆";
+  favoriteBtn.setAttribute("aria-pressed", saved ? "true" : "false");
+  favoriteBtn.setAttribute(
+    "aria-label",
+    saved
+      ? `Remove ${selectedCity.name} from favorites`
+      : `Save ${selectedCity.name} to favorites`
+  );
+}
+
+function toggleFavorite() {
   const favorites = getFavorites();
+  const idx = favorites.findIndex((c) => sameCity(c, selectedCity));
 
-  const exists = favorites.some((city: any) => city.name === selectedCity.name);
-
-  if (!exists) {
+  if (idx === -1) {
     favorites.push(selectedCity);
-    localStorage.setItem("favorites", JSON.stringify(favorites));
+  } else {
+    favorites.splice(idx, 1);
   }
 
+  setFavorites(favorites);
   renderFavorites();
 }
 
@@ -197,7 +425,7 @@ function renderFavorites() {
 
   dropdown.innerHTML = `<option value="">Favorite Cities</option>`;
 
-  favorites.forEach((city: any) => {
+  favorites.forEach((city) => {
     const option = document.createElement("option");
 
     option.value = JSON.stringify(city);
@@ -205,6 +433,8 @@ function renderFavorites() {
 
     dropdown.appendChild(option);
   });
+
+  syncFavoriteButton();
 }
 
 function setupFavorites() {
@@ -212,16 +442,17 @@ function setupFavorites() {
   const dropdown = document.querySelector("#favoritesDropdown") as HTMLSelectElement;
 
   if (favoriteBtn) {
-    favoriteBtn.addEventListener("click", saveFavorite);
+    favoriteBtn.addEventListener("click", toggleFavorite);
   }
 
   if (dropdown) {
     dropdown.addEventListener("change", () => {
       if (!dropdown.value) return;
 
-      const city = JSON.parse(dropdown.value);
+      const city = JSON.parse(dropdown.value) as SavedCity;
 
       loadWeather(city.name, city.lat, city.lon);
+      dropdown.value = "";
     });
   }
 

@@ -1,19 +1,37 @@
-<section class="card current-weather">
+---
+---
 
-  <h2 id="cityName">
-    Loading...
-  </h2>
+<section
+  class="card current-weather"
+  aria-labelledby="current-city-heading"
+  data-state="loading"
+>
+  <header class="current-weather__header">
+    <h2 id="current-city-heading" class="current-weather__city">Loading…</h2>
+    <button
+      type="button"
+      id="favoriteBtn"
+      class="current-weather__favorite"
+      aria-label="Add city to favorites"
+    >
+      ☆
+    </button>
+  </header>
 
-  <p id="currentTemp">
-    --°C
+  <p class="current-weather__temp" id="currentTemp" aria-live="polite">--°C</p>
+
+  <p class="current-weather__summary" id="currentSummary" aria-live="polite">
+    …
   </p>
 
-  <p id="currentCondition">
-    Loading weather...
-  </p>
-
-  <button id="favoriteBtn">
-    ☆
-  </button>
-
+  <dl class="current-weather__details">
+    <div class="current-weather__row">
+      <dt>Wind</dt>
+      <dd id="currentWind">--</dd>
+    </div>
+    <div class="current-weather__row">
+      <dt>Observation</dt>
+      <dd id="currentUpdated">--</dd>
+    </div>
+  </dl>
 </section>

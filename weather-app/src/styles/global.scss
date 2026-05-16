@@ -1,4 +1,5 @@
 @use "./variables" as *;
+@use "./current-weather";
 
 * {
   box-sizing: border-box;
@@ -47,8 +48,7 @@ body {
     grid-template-columns: 1fr;
   }
 }
-.search input,
-.favorites select {
+.search input {
   width: 100%;
   padding: 1rem;
   border-radius: 12px;
@@ -56,10 +56,39 @@ body {
   font-size: 1rem;
 }
 
+.favorites select,
+#favoritesDropdown {
+  width: 100%;
+  padding: 1rem 3rem 1rem 1rem;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  font-size: 1rem;
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+  background-color: #fff;
+
+  appearance: none;
+  -webkit-appearance: none;
+
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.25'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1.35rem center;
+  background-size: 1rem 1rem;
+}
+
+#favoritesDropdown::-ms-expand {
+  display: none;
+}
+
 #suggestions {
   margin-top: 1rem;
   display: grid;
   gap: 0.5rem;
+}
+
+#suggestions[hidden] {
+  display: none !important;
 }
 
 .suggestion-item {
@@ -71,7 +100,8 @@ body {
   text-align: left;
 }
 
-.suggestion-item:hover {
+.suggestion-item:hover,
+.suggestion-item--active {
   background: #cbd5e1;
 }
 

@@ -2,12 +2,14 @@ const PLACEKIT_API_KEY =
   import.meta.env.PUBLIC_PLACEKIT_API_KEY;
 
 export async function searchCities(
-  query: string
+  query: string,
+  signal?: AbortSignal
 ) {
   const response = await fetch(
     "https://api.placekit.co/search",
     {
       method: "POST",
+      signal,
 
       headers: {
         "Content-Type": "application/json",

@@ -4,6 +4,14 @@
   position: relative;
 }
 
+.current-weather[data-state="loading"] .current-weather__summary {
+  color: #64748b;
+}
+
+.current-weather[data-state="error"] .current-weather__summary {
+  color: #b45309;
+}
+
 .current-weather__header {
   display: flex;
   align-items: flex-start;

@@ -1,5 +1,5 @@
 import { getWeather, type OpenMeteoForecast } from "./weather";
-import { searchCities } from "./places";
+import { searchCities, type PlaceKitResult } from "./places";
 import {
   formatObservationTime,
   formatWindLine,
@@ -28,18 +28,58 @@ function sameCity(a: SavedCity, b: SavedCity): boolean {
   );
 }
 
-async function loadWeather(cityName: string, lat: number, lon: number) {
-  try {
-    selectedCity = { name: cityName, lat, lon };
+function isValidCoords(lat: number, lon: number): boolean {
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lon) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lon >= -180 &&
+    lon <= 180
+  );
+}
 
+function showCurrentWeatherLoading(cityName: string) {
+  setCurrentWeatherState("loading");
+
+  const cityEl = document.querySelector("#current-city-heading");
+  const tempEl = document.querySelector("#currentTemp");
+  const summaryEl = document.querySelector("#currentSummary");
+  const windEl = document.querySelector("#currentWind");
+  const updatedEl = document.querySelector("#currentUpdated");
+
+  if (cityEl) cityEl.textContent = cityName;
+  if (tempEl) tempEl.textContent = "—";
+  if (summaryEl) summaryEl.textContent = "Loading…";
+  if (windEl) windEl.textContent = "—";
+  if (updatedEl) updatedEl.textContent = "—";
+}
+
+async function loadWeather(cityName: string, lat: number, lon: number) {
+  if (!isValidCoords(lat, lon)) {
+    console.error("Invalid coordinates:", lat, lon);
+    showCurrentWeatherError(cityName);
+    return;
+  }
+
+  selectedCity = { name: cityName, lat, lon };
+  showCurrentWeatherLoading(cityName);
+
+  try {
     const data = await getWeather(lat, lon);
+
+    if (!data.current_weather || !data.daily?.time?.length) {
+      throw new Error("Unexpected weather API response");
+    }
 
     renderCurrentWeather(cityName, data);
     renderDailyForecast(data);
     renderHourlyForecast(data, data.daily.time[0]);
+    syncFavoritesDropdownSelection();
   } catch (error) {
     console.error("Weather error:", error);
     showCurrentWeatherError(cityName);
+    syncFavoritesDropdownSelection();
   }
 }
 
@@ -62,10 +102,16 @@ function showCurrentWeatherError(cityName: string) {
   if (summaryEl) summaryEl.textContent = "Weather data unavailable. Try again soon.";
   if (windEl) windEl.textContent = "—";
   if (updatedEl) updatedEl.textContent = "—";
+  syncFavoriteButton();
+  syncFavoritesDropdownSelection();
 }
 
 function renderCurrentWeather(cityName: string, data: OpenMeteoForecast) {
   const cw = data.current_weather;
+  if (!cw) {
+    showCurrentWeatherError(cityName);
+    return;
+  }
 
   const cityElement = document.querySelector("#current-city-heading");
   const tempElement = document.querySelector("#currentTemp");
@@ -145,44 +191,48 @@ function renderHourlyForecast(data: OpenMeteoForecast, selectedDay: string) {
   });
 }
 
-function getPlaceName(place: any) {
-  return (
-    place.name ||
-    place.city ||
-    place.label ||
-    place.displayName ||
-    "Selected City"
-  );
+function getPlaceName(place: PlaceKitResult) {
+  return place.city || place.name || "Selected City";
 }
 
-function getPlaceLatitude(place: any) {
-  return (
-    place.coordinates?.lat ??
-    place.coordinates?.latitude ??
-    place.lat ??
-    place.latitude ??
-    place.geometry?.location?.lat
-  );
+function coordsFromString(value: string): { lat: number; lon: number } | null {
+  const parts = value.split(",").map((s) => Number.parseFloat(s.trim()));
+  if (parts.length < 2 || parts.some((n) => Number.isNaN(n))) return null;
+  return { lat: parts[0], lon: parts[1] };
 }
 
-function getPlaceLongitude(place: any) {
-  return (
-    place.coordinates?.lng ??
-    place.coordinates?.lon ??
-    place.coordinates?.longitude ??
-    place.lng ??
-    place.lon ??
-    place.longitude ??
-    place.geometry?.location?.lng
-  );
+function getPlaceLatitude(place: PlaceKitResult): number | null {
+  if (typeof place.lat === "number") return place.lat;
+  if (typeof place.coordinates === "string") {
+    return coordsFromString(place.coordinates)?.lat ?? null;
+  }
+  return null;
+}
+
+function getPlaceLongitude(place: PlaceKitResult): number | null {
+  if (typeof place.lng === "number") return place.lng;
+  if (typeof place.coordinates === "string") {
+    return coordsFromString(place.coordinates)?.lon ?? null;
+  }
+  return null;
+}
+
+function isCityResult(place: PlaceKitResult): boolean {
+  if (!place.type) return true;
+  return place.type === "city" || place.type === "administrative";
 }
 
 function setupSearch() {
-  const input = document.querySelector("#cityInput") as HTMLInputElement | null;
-  const listEl = document.querySelector("#suggestions") as HTMLElement | null;
-  const searchRoot = input?.closest(".search") ?? null;
+  const inputEl = document.querySelector("#cityInput");
+  const listNode = document.querySelector("#suggestions");
 
-  if (!input || !listEl) return;
+  if (!(inputEl instanceof HTMLInputElement) || !(listNode instanceof HTMLElement)) {
+    return;
+  }
+
+  const input = inputEl;
+  const listEl = listNode;
+  const searchRoot = input.closest(".search");
 
   input.setAttribute("aria-autocomplete", "list");
   input.setAttribute("aria-controls", "suggestions");
@@ -191,16 +241,31 @@ function setupSearch() {
   listEl.setAttribute("role", "listbox");
   listEl.setAttribute("aria-label", "City suggestions");
 
-  const placekitOk = Boolean(import.meta.env.PUBLIC_PLACEKIT_API_KEY);
+  const placekitOk = Boolean(
+    import.meta.env.PUBLIC_PLACEKIT_API_KEY?.trim()
+  );
 
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
   let fetchAbort: AbortController | undefined;
-  let suggestionPlaces: unknown[] = [];
+  let suggestionPlaces: PlaceKitResult[] = [];
   let activeIndex = -1;
 
   function setListOpen(open: boolean) {
     input.setAttribute("aria-expanded", open ? "true" : "false");
     listEl.hidden = !open;
+  }
+
+  function showSearchMessage(message: string) {
+    listEl.innerHTML = "";
+    suggestionPlaces = [];
+    activeIndex = -1;
+    input.removeAttribute("aria-activedescendant");
+
+    const note = document.createElement("p");
+    note.className = "search-message";
+    note.textContent = message;
+    listEl.appendChild(note);
+    setListOpen(true);
   }
 
   function clearSuggestionsUi() {
@@ -231,7 +296,7 @@ function setupSearch() {
     buttons[activeIndex]?.scrollIntoView({ block: "nearest" });
   }
 
-  function applySelection(place: unknown) {
+  function applySelection(place: PlaceKitResult) {
     const cityName = getPlaceName(place);
     const lat = getPlaceLatitude(place);
     const lon = getPlaceLongitude(place);
@@ -246,7 +311,7 @@ function setupSearch() {
     loadWeather(cityName, Number(lat), Number(lon));
   }
 
-  function renderSuggestionButtons(places: unknown[]) {
+  function renderSuggestionButtons(places: PlaceKitResult[]) {
     listEl.innerHTML = "";
     suggestionPlaces = places;
     activeIndex = -1;
@@ -260,10 +325,7 @@ function setupSearch() {
     places.forEach((place, index) => {
       const button = document.createElement("button");
       const cityName = getPlaceName(place);
-      const country =
-        (place as { country?: string }).country ||
-        (place as { countryCode?: string }).countryCode ||
-        "";
+      const country = place.country || place.countryCode || place.countrycode || "";
 
       button.type = "button";
       button.className = "suggestion-item";
@@ -289,10 +351,9 @@ function setupSearch() {
 
   async function fetchSuggestions(query: string) {
     if (!placekitOk) {
-      console.warn(
-        "PlaceKit: set PUBLIC_PLACEKIT_API_KEY in .env for city search."
+      showSearchMessage(
+        "City search needs PUBLIC_PLACEKIT_API_KEY in weather-app/.env (restart npm run dev after adding it)."
       );
-      clearSuggestionsUi();
       return;
     }
 
@@ -302,14 +363,21 @@ function setupSearch() {
     try {
       const data = await searchCities(query, fetchAbort.signal);
 
-      const results = Array.isArray(data.results) ? data.results : [];
+      const results = (data.results ?? []).filter(isCityResult);
+
+      if (results.length === 0) {
+        showSearchMessage("No cities found. Try another spelling.");
+        return;
+      }
 
       renderSuggestionButtons(results);
     } catch (error) {
       if ((error as Error).name === "AbortError") return;
 
       console.error("PlaceKit error:", error);
-      clearSuggestionsUi();
+      showSearchMessage(
+        "Could not load suggestions. Check your API key and network."
+      );
     }
   }
 
@@ -367,15 +435,36 @@ function setupSearch() {
   });
 }
 
-function getFavorites(): SavedCity[] {
+function isValidSavedCity(city: unknown): city is SavedCity {
+  if (!city || typeof city !== "object") return false;
+  const c = city as SavedCity;
+  return (
+    typeof c.name === "string" &&
+    c.name.length > 0 &&
+    Number.isFinite(c.lat) &&
+    Number.isFinite(c.lon)
+  );
+}
+
+function readFavoritesFromStorage(): SavedCity[] {
   try {
     const raw = localStorage.getItem("favorites");
     if (!raw) return [];
     const list = JSON.parse(raw) as unknown;
-    return Array.isArray(list) ? (list as SavedCity[]) : [];
+    if (!Array.isArray(list)) return [];
+    return list.filter(isValidSavedCity);
   } catch {
     return [];
   }
+}
+
+function sanitizeFavoritesStorage() {
+  const valid = readFavoritesFromStorage();
+  setFavorites(valid);
+}
+
+function getFavorites(): SavedCity[] {
+  return readFavoritesFromStorage();
 }
 
 function setFavorites(cities: SavedCity[]) {
@@ -416,6 +505,14 @@ function toggleFavorite() {
   renderFavorites();
 }
 
+function syncFavoritesDropdownSelection() {
+  const dropdown = document.querySelector("#favoritesDropdown") as HTMLSelectElement | null;
+  if (!dropdown) return;
+
+  const match = getFavorites().find((city) => sameCity(city, selectedCity));
+  dropdown.value = match ? JSON.stringify(match) : "";
+}
+
 function renderFavorites() {
   const dropdown = document.querySelector("#favoritesDropdown") as HTMLSelectElement;
 
@@ -434,6 +531,7 @@ function renderFavorites() {
     dropdown.appendChild(option);
   });
 
+  syncFavoritesDropdownSelection();
   syncFavoriteButton();
 }
 
@@ -449,13 +547,24 @@ function setupFavorites() {
     dropdown.addEventListener("change", () => {
       if (!dropdown.value) return;
 
-      const city = JSON.parse(dropdown.value) as SavedCity;
+      try {
+        const city = JSON.parse(dropdown.value) as SavedCity;
 
-      loadWeather(city.name, city.lat, city.lon);
-      dropdown.value = "";
+        if (!isValidSavedCity(city)) {
+          console.error("Invalid favorite entry:", city);
+          syncFavoritesDropdownSelection();
+          return;
+        }
+
+        void loadWeather(city.name, city.lat, city.lon);
+      } catch (error) {
+        console.error("Could not read favorite:", error);
+        syncFavoritesDropdownSelection();
+      }
     });
   }
 
+  sanitizeFavoritesStorage();
   renderFavorites();
 }
 

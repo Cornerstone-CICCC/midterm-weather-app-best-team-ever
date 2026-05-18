@@ -91,6 +91,16 @@ body {
   display: none !important;
 }
 
+.search-message {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
 .suggestion-item {
   border: none;
   padding: 1rem;
@@ -107,8 +117,4 @@ body {
 
 .daily-card {
   cursor: pointer;
-}
-
-.hourly-grid {
-  grid-template-columns: repeat(4, 1fr);
 }

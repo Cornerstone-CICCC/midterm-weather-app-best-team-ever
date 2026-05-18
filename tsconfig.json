@@ -1,0 +1,3 @@
+{
+  "extends": "./weather-app/tsconfig.json"
+}

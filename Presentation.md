@@ -20,3 +20,4 @@ Sleepy
 ### What I Learned
 Time is money.
 
+![Miku](presentation-assets/Miku.png)

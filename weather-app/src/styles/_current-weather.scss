@@ -1,0 +1,75 @@
+@use "./variables" as *;
+
+.current-weather {
+  position: relative;
+}
+
+.current-weather[data-state="loading"] .current-weather__summary {
+  color: #64748b;
+}
+
+.current-weather[data-state="error"] .current-weather__summary {
+  color: #b45309;
+}
+
+.current-weather__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.current-weather__city {
+  margin: 0;
+  line-height: 1.2;
+}
+
+.current-weather__favorite {
+  flex-shrink: 0;
+}
+
+.current-weather__temp {
+  letter-spacing: -0.03em;
+}
+
+.current-weather__summary {
+  margin: 0 0 1rem;
+}
+
+.current-weather__row dt {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.current-weather__row dd {
+  color: white;
+}
+
+.current-weather__details {
+  margin: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.current-weather__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.95rem;
+}
+
+.current-weather__row dt {
+  margin: 0;
+  font-weight: 600;
+}
+
+.current-weather__row dd {
+  margin: 0;
+  text-align: right;
+}
+
+@media (max-width: 375px) {
+  .current-weather__temp {
+    font-size: 2.25rem;
+  }
+}

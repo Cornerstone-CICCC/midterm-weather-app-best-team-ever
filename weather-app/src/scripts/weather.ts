@@ -1,23 +1,23 @@
-export type OpenMeteoCurrentWeather = {
-  temperature: number;
-  windspeed: number;
-  winddirection: number;
-  weathercode: number;
-  is_day: number;
+export type OpenMeteoCurrent = {
   time: string;
+  temperature_2m: number;
+  wind_speed_10m: number;
+  wind_direction_10m: number;
+  weather_code: number;
 };
 
 export type OpenMeteoForecast = {
-  current_weather: OpenMeteoCurrentWeather;
+  current: OpenMeteoCurrent;
   daily: {
     time: string[];
     temperature_2m_max: number[];
     temperature_2m_min: number[];
+    weather_code: number[];
   };
   hourly: {
     time: string[];
     temperature_2m: number[];
-    windspeed_10m: number[];
+    weather_code: number[];
   };
 };
 
@@ -26,7 +26,11 @@ export async function getWeather(
   lon: number
 ): Promise<OpenMeteoForecast> {
   const url =
-    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,windspeed_10m&daily=temperature_2m_max,temperature_2m_min&forecast_days=5&timezone=auto`;
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+    `&current=temperature_2m,wind_speed_10m,wind_direction_10m,weather_code` +
+    `&hourly=temperature_2m,weather_code` +
+    `&daily=temperature_2m_max,temperature_2m_min,weather_code` +
+    `&forecast_days=5&timezone=auto`;
 
   const response = await fetch(url);
 

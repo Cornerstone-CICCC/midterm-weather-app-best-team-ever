@@ -22,37 +22,27 @@
 
 .current-weather__city {
   margin: 0;
-  font-size: 1.35rem;
-  font-weight: 700;
   line-height: 1.2;
 }
 
 .current-weather__favorite {
   flex-shrink: 0;
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
-  border-radius: 10px;
-  padding: 0.4rem 0.65rem;
-  font-size: 1.25rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.current-weather__favorite:hover {
-  background: #e2e8f0;
 }
 
 .current-weather__temp {
-  margin: 0.25rem 0 0.5rem;
-  font-size: 2.75rem;
-  font-weight: 700;
   letter-spacing: -0.03em;
 }
 
 .current-weather__summary {
   margin: 0 0 1rem;
-  font-size: 1.1rem;
-  color: #475569;
+}
+
+.current-weather__row dt {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.current-weather__row dd {
+  color: white;
 }
 
 .current-weather__details {
@@ -70,14 +60,12 @@
 
 .current-weather__row dt {
   margin: 0;
-  color: #64748b;
   font-weight: 600;
 }
 
 .current-weather__row dd {
   margin: 0;
   text-align: right;
-  color: $text;
 }
 
 @media (max-width: 375px) {

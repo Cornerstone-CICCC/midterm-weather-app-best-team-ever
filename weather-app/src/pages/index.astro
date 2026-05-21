@@ -18,13 +18,23 @@ import HourlyForecast from "../components/HourlyForecast.astro";
   <body>
     <main class="app">
       <section class="weather-container">
-        <Search />
+        <div class="top-row">
+          <Search />
+          <Favorites />
+        </div>
 
-        <Favorites />
+        <section class="weather-hero">
+          <CurrentWeather />
+        </section>
 
-        <CurrentWeather />
+        <section class="forecast-section">
+          <div class="forecast-controls">
+            <div class="forecast-title">Daily Forecast</div>
+            <button class="period-button">Daily ▾</button>
+          </div>
 
-        <DailyForecast />
+          <DailyForecast />
+        </section>
 
         <HourlyForecast />
       </section>

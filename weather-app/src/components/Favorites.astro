@@ -1,5 +1,33 @@
-<section class="favorites card">
-  <select id="favoritesDropdown">
-    <option value="">Favorite Cities</option>
-  </select>
+---
+---
+
+<section class="favorites-panel">
+  <div class="favorites-current">
+    <span class="favorites-current__icon">📍</span>
+
+    <div>
+      <h2 id="favoritesCurrentCity">Vancouver</h2>
+      <p id="favoritesCurrentLocation">British Columbia, Canada</p>
+    </div>
+  </div>
+
+  <div class="favorites-weather">
+    <span id="favoritesWeatherIcon">⛅</span>
+
+    <div>
+      <strong id="favoritesCurrentTemp">--°C</strong>
+      <p id="favoritesCurrentSummary">Weather</p>
+    </div>
+  </div>
+
+  <div class="favorites-select">
+    <div>
+      <span>⭐ Favorites</span>
+      <small id="favoritesCount">0 saved</small>
+    </div>
+
+    <select id="favoritesDropdown">
+      <option value="">Favorite Cities</option>
+    </select>
+  </div>
 </section>

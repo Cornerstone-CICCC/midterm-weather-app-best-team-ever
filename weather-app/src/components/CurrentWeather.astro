@@ -1,37 +1,102 @@
 ---
 ---
 
-<section
-  class="card current-weather"
-  aria-labelledby="current-city-heading"
-  data-state="loading"
->
+<section class="card current-weather" aria-labelledby="current-city-heading" data-state="loading">
   <header class="current-weather__header">
-    <h2 id="current-city-heading" class="current-weather__city">Loading…</h2>
-    <button
-      type="button"
-      id="favoriteBtn"
-      class="current-weather__favorite"
-      aria-label="Add city to favorites"
-    >
-      ☆
-    </button>
+    <div>
+      <h2 id="current-city-heading" class="current-weather__city">Loading…</h2>
+      <p id="currentLocation" class="current-weather__location">--</p>
+    </div>
+
+    <button type="button" id="favoriteBtn" class="current-weather__favorite">☆</button>
   </header>
 
-  <p class="current-weather__temp" id="currentTemp" aria-live="polite">--°C</p>
+  <div class="current-weather__hero">
+    <div class="current-weather__main-info">
+      <p class="current-weather__icon" id="currentIcon">☁️</p>
 
-  <p class="current-weather__summary" id="currentSummary" aria-live="polite">
-    …
-  </p>
+      <div>
+        <p class="current-weather__temp" id="currentTemp">--°C</p>
+        <p class="current-weather__summary" id="currentSummary">…</p>
+      </div>
+    </div>
 
-  <dl class="current-weather__details">
-    <div class="current-weather__row">
-      <dt>Wind</dt>
-      <dd id="currentWind">--</dd>
-    </div>
-    <div class="current-weather__row">
-      <dt>Observation</dt>
-      <dd id="currentUpdated">--</dd>
-    </div>
-  </dl>
+    <dl class="current-weather__details">
+      <div class="current-weather__row">
+        <dt>💨 Wind</dt>
+        <dd id="currentWind">--</dd>
+      </div>
+
+      <div class="current-weather__row">
+        <dt>🕘 Observation</dt>
+        <dd id="currentUpdated">--</dd>
+      </div>
+
+      <div class="current-weather__row">
+        <dt>🌅 Sunrise</dt>
+        <dd id="currentSunrise">--</dd>
+      </div>
+
+      <div class="current-weather__row">
+        <dt>🌇 Sunset</dt>
+        <dd id="currentSunset">--</dd>
+      </div>
+    </dl>
+  </div>
+
+  <div class="current-weather__stats">
+    <article class="weather-stat weather-stat--temp">
+      <span class="weather-stat__icon">🌡️</span>
+      <div>
+        <p>Temperature</p>
+        <strong id="statTemperature">--°C</strong>
+        <small>Current</small>
+      </div>
+    </article>
+
+    <article class="weather-stat weather-stat--wind">
+      <span class="weather-stat__icon">💨</span>
+      <div>
+        <p>Wind</p>
+        <strong id="statWind">--</strong>
+        <small>Current speed</small>
+      </div>
+    </article>
+
+    <article class="weather-stat weather-stat--humidity">
+      <span class="weather-stat__icon">💧</span>
+      <div>
+        <p>Humidity</p>
+        <strong id="statHumidity">--%</strong>
+        <small>Comfort level</small>
+      </div>
+    </article>
+
+    <article class="weather-stat weather-stat--air">
+      <span class="weather-stat__icon">🍃</span>
+      <div>
+        <p>Air Quality</p>
+        <strong id="currentAirQuality">--</strong>
+        <small>Good</small>
+      </div>
+    </article>
+
+    <article class="weather-stat weather-stat--uv">
+      <span class="weather-stat__icon">🔆</span>
+      <div>
+        <p>UV Index</p>
+        <strong id="currentUv">--</strong>
+        <small>Daily max</small>
+      </div>
+    </article>
+
+    <article class="weather-stat weather-stat--visibility">
+      <span class="weather-stat__icon">👁️</span>
+      <div>
+        <p>Visibility</p>
+        <strong id="statVisibility">-- km</strong>
+        <small>Excellent</small>
+      </div>
+    </article>
+  </div>
 </section>

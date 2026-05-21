@@ -16,6 +16,18 @@ import HourlyForecast from "../components/HourlyForecast.astro";
   </head>
 
   <body>
+    <div class="site-background">
+      <video
+        id="backgroundVideo"
+        autoplay
+        muted
+        loop
+        playsinline
+      ></video>
+
+      <div class="site-background__overlay"></div>
+    </div>
+
     <main class="app">
       <section class="weather-container">
         <Search />

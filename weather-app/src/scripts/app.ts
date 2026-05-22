@@ -1,5 +1,4 @@
 import { updateBackgroundVideo } from "./backgroundVideo";
-import { getCityImage } from "./cityImage";
 import { getWeather, type OpenMeteoForecast } from "./weather";
 import { searchCities, type PlaceKitResult } from "./places";
 import {
@@ -471,30 +470,6 @@ async function renderCurrentWeather(cityName: string, data: OpenMeteoForecast) {
           : "—";
     } catch {
       airQualityElement.textContent = "Unavailable";
-    }
-  }
-
-  const weatherPanel = document.querySelector(".current-weather") as HTMLElement | null;
-  const heroImage = document.querySelector(".hero-image") as HTMLElement | null;
-  const imageTarget = heroImage ?? weatherPanel;
-
-  if (imageTarget) {
-    const imageUrl = await getCityImage(cityName);
-
-    if (imageUrl) {
-      imageTarget.style.backgroundImage = `
-        linear-gradient(
-          90deg,
-          rgba(3, 7, 18, 0.55),
-          rgba(15, 23, 42, 0.35),
-          rgba(2, 6, 23, 0.55)
-        ),
-        url("${imageUrl}")
-      `;
-
-      imageTarget.style.backgroundSize = "cover";
-      imageTarget.style.backgroundPosition = "center";
-      imageTarget.style.backgroundRepeat = "no-repeat";
     }
   }
 

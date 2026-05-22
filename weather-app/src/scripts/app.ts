@@ -1,6 +1,6 @@
 import { updateBackgroundVideo } from "./backgroundVideo";
-import { getWeather, type OpenMeteoForecast } from "./weather";
 import { searchCities, type PlaceKitResult } from "./places";
+import { getWeather, type OpenMeteoForecast } from "./weather";
 import {
   formatObservationTime,
   formatWindLine,
@@ -24,6 +24,7 @@ const VANCOUVER: SavedCity = {
 let selectedCity: SavedCity = VANCOUVER;
 let currentUser: string | null = null;
 let sessionTimeoutId: number | null = null;
+let draggedFavoriteIndex: number | null = null;
 const SESSION_TIMEOUT_MS = 5 * 60 * 60 * 1000;
 
 function saveUserSession(username: string) {
@@ -899,6 +900,12 @@ function setFavorites(cities: SavedCity[]) {
   localStorage.setItem("favorites", JSON.stringify(cities));
 }
 
+function getFavoriteLabel(city: SavedCity): string {
+  return city.location && city.location !== "Selected city"
+    ? `${city.name}, ${city.location}`
+    : city.name;
+}
+
 function isFavoriteCity(city: SavedCity): boolean {
   return getFavorites().some((c) => sameCity(c, city));
 }
@@ -944,16 +951,150 @@ function syncFavoritesDropdownSelection() {
   dropdown.value = match ? JSON.stringify(match) : "";
 }
 
+function clearFavoriteDragState() {
+  document
+    .querySelectorAll(".favorite-item--dragging, .favorite-item--drag-over")
+    .forEach((item) => {
+      item.classList.remove("favorite-item--dragging", "favorite-item--drag-over");
+    });
+}
+
+function openFavoritesModal() {
+  const modal = document.querySelector("#favoritesModal") as HTMLElement | null;
+
+  if (!modal) return;
+
+  if (modal.parentElement !== document.body) {
+    document.body.appendChild(modal);
+  }
+
+  renderFavoritesList(getFavorites());
+  document.body.classList.add("modal-open");
+  modal.classList.remove("hidden");
+  modal.setAttribute("aria-hidden", "false");
+}
+
+function closeFavoritesModal() {
+  const modal = document.querySelector("#favoritesModal") as HTMLElement | null;
+
+  if (!modal) return;
+
+  draggedFavoriteIndex = null;
+  clearFavoriteDragState();
+  document.body.classList.remove("modal-open");
+  modal.classList.add("hidden");
+  modal.setAttribute("aria-hidden", "true");
+}
+
+function moveFavorite(fromIndex: number, toIndex: number) {
+  if (fromIndex === toIndex) return;
+
+  const favorites = getFavorites();
+
+  if (
+    !Number.isInteger(fromIndex) ||
+    !Number.isInteger(toIndex) ||
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= favorites.length ||
+    toIndex >= favorites.length
+  ) {
+    return;
+  }
+
+  const [movedFavorite] = favorites.splice(fromIndex, 1);
+  favorites.splice(toIndex, 0, movedFavorite);
+  setFavorites(favorites);
+  renderFavorites();
+}
+
+function renderFavoritesList(favorites: SavedCity[]) {
+  const list = document.querySelector("#favoritesList") as HTMLElement | null;
+
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  favorites.forEach((city, index) => {
+    const item = document.createElement("button");
+    const label = getFavoriteLabel(city);
+
+    item.type = "button";
+    item.className = "favorite-item";
+    item.draggable = true;
+    item.setAttribute("aria-label", `Move ${label}`);
+
+    const labelElement = document.createElement("span");
+    labelElement.className = "favorite-item__label";
+    labelElement.textContent = label;
+
+    const handleElement = document.createElement("span");
+    handleElement.className = "favorite-item__handle";
+    handleElement.setAttribute("aria-hidden", "true");
+    handleElement.textContent = "☰";
+
+    item.append(labelElement, handleElement);
+
+    item.addEventListener("dragstart", (event) => {
+      draggedFavoriteIndex = index;
+      event.dataTransfer?.setDragImage(item, item.offsetWidth / 2, item.offsetHeight / 2);
+      event.dataTransfer?.setData("application/x-favorite-index", String(index));
+      item.classList.add("favorite-item--dragging");
+    });
+
+    item.addEventListener("dragenter", () => {
+      if (draggedFavoriteIndex !== null && draggedFavoriteIndex !== index) {
+        item.classList.add("favorite-item--drag-over");
+      }
+    });
+
+    item.addEventListener("dragover", (event) => {
+      if (draggedFavoriteIndex === null || draggedFavoriteIndex === index) return;
+
+      event.preventDefault();
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = "move";
+      }
+      item.classList.add("favorite-item--drag-over");
+    });
+
+    item.addEventListener("dragleave", () => {
+      item.classList.remove("favorite-item--drag-over");
+    });
+
+    item.addEventListener("drop", (event) => {
+      event.preventDefault();
+
+      const fromIndex =
+        draggedFavoriteIndex ??
+        Number(event.dataTransfer?.getData("application/x-favorite-index"));
+
+      clearFavoriteDragState();
+      draggedFavoriteIndex = null;
+
+      moveFavorite(fromIndex, index);
+    });
+
+    item.addEventListener("dragend", () => {
+      draggedFavoriteIndex = null;
+      clearFavoriteDragState();
+    });
+
+    list.appendChild(item);
+  });
+}
+
 function renderFavorites() {
   const dropdown = document.querySelector("#favoritesDropdown") as HTMLSelectElement;
-  const favoritesCountElement = document.querySelector("#favoritesCount");
+  const openFavoritesModalButton = document.querySelector("#openFavoritesModal") as HTMLButtonElement | null;
+  const favoritesModal = document.querySelector("#favoritesModal") as HTMLElement | null;
 
   if (!dropdown) return;
 
   const favorites = getFavorites();
 
-  if (favoritesCountElement) {
-    favoritesCountElement.textContent = `${favorites.length} saved`;
+  if (openFavoritesModalButton) {
+    openFavoritesModalButton.disabled = favorites.length < 2;
   }
 
   dropdown.innerHTML = `<option value="">Favorite Cities</option>`;
@@ -962,13 +1103,14 @@ function renderFavorites() {
     const option = document.createElement("option");
 
     option.value = JSON.stringify(city);
-    option.textContent =
-      city.location && city.location !== "Selected city"
-        ? `${city.name}, ${city.location}`
-        : city.name;
+    option.textContent = getFavoriteLabel(city);
 
     dropdown.appendChild(option);
   });
+
+  if (favoritesModal && !favoritesModal.classList.contains("hidden")) {
+    renderFavoritesList(favorites);
+  }
 
   syncFavoritesDropdownSelection();
   syncFavoriteButton();
@@ -977,9 +1119,28 @@ function renderFavorites() {
 function setupFavorites() {
   const favoriteBtn = document.querySelector("#favoriteBtn");
   const dropdown = document.querySelector("#favoritesDropdown") as HTMLSelectElement;
+  const openFavoritesModalButton = document.querySelector("#openFavoritesModal") as HTMLButtonElement | null;
+  const favoritesModal = document.querySelector("#favoritesModal") as HTMLElement | null;
+  const closeFavoritesModalButtons = document.querySelectorAll("[data-favorites-close]");
 
   if (favoriteBtn) {
     favoriteBtn.addEventListener("click", toggleFavorite);
+  }
+
+  if (openFavoritesModalButton) {
+    openFavoritesModalButton.addEventListener("click", openFavoritesModal);
+  }
+
+  closeFavoritesModalButtons.forEach((button) => {
+    button.addEventListener("click", closeFavoritesModal);
+  });
+
+  if (favoritesModal) {
+    favoritesModal.addEventListener("click", (event) => {
+      if (event.target === favoritesModal) {
+        closeFavoritesModal();
+      }
+    });
   }
 
   if (dropdown) {

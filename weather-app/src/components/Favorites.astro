@@ -1,5 +1,23 @@
 <section class="favorites card">
-  <select id="favoritesDropdown">
-    <option value="">Favorite Cities</option>
-  </select>
+  <div class="favorites-controls">
+    <select id="favoritesDropdown">
+      <option value="">Favorite Cities</option>
+    </select>
+    <button id="openFavoritesModal" class="favorites-reorder-button" type="button">
+      Reorder
+    </button>
+  </div>
+
+  <div id="favoritesModal" class="favorites-modal hidden" aria-hidden="true">
+    <div class="favorites-modal-backdrop" data-favorites-close="true"></div>
+    <div class="favorites-modal-content" role="dialog" aria-modal="true" aria-labelledby="favoritesModalTitle">
+      <div class="favorites-modal-header">
+        <h2 id="favoritesModalTitle">Favorite Cities</h2>
+        <button class="favorites-modal-close" type="button" data-favorites-close="true" aria-label="Close favorites reorder">
+          X
+        </button>
+      </div>
+      <div id="favoritesList" class="favorites-list" aria-label="Favorite cities"></div>
+    </div>
+  </div>
 </section>

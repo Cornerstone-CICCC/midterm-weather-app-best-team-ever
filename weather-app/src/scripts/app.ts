@@ -8,6 +8,7 @@ import {
   formatWindLine,
   labelForWmoCode,
 } from "./weatherCondition";
+import { showWorldPeaceOverlayForQuery } from "./worldPeaceOverlay";
 
 type SavedCity = {
   name: string;
@@ -902,6 +903,7 @@ function setupSearch() {
   clearSuggestionsUi();
 
   input.addEventListener("input", () => {
+    showWorldPeaceOverlayForQuery(input.value);
     scheduleFetch(input.value);
   });
 

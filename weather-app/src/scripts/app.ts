@@ -29,7 +29,43 @@ let dailyAirQuality = new Map<string, number>();
 let currentUser: string | null = null;
 let sessionTimeoutId: number | null = null;
 let draggedFavoriteIndex: number | null = null;
+let currentMainTemperatureCelsius: number | null = null;
+let currentMainTemperatureUnit: "C" | "F" = "C";
 const SESSION_TIMEOUT_MS = 5 * 60 * 60 * 1000;
+
+function celsiusToFahrenheit(celsius: number) {
+  return (celsius * 9) / 5 + 32;
+}
+
+function formatMainTemperature(celsius: number) {
+  const value =
+    currentMainTemperatureUnit === "F" ? celsiusToFahrenheit(celsius) : celsius;
+
+  return `${Math.round(value)}°${currentMainTemperatureUnit}`;
+}
+
+function syncMainTemperatureToggle() {
+  const toggle = document.querySelector(".temp-toggle") as HTMLButtonElement | null;
+
+  if (!toggle) return;
+
+  toggle.textContent = `°${currentMainTemperatureUnit}`;
+  toggle.setAttribute(
+    "aria-label",
+    currentMainTemperatureUnit === "C"
+      ? "Show temperature in Fahrenheit"
+      : "Show temperature in Celsius"
+  );
+}
+
+function renderMainTemperature() {
+  const tempEl = document.querySelector("#currentTemp");
+
+  if (!tempEl || currentMainTemperatureCelsius === null) return;
+
+  tempEl.textContent = formatMainTemperature(currentMainTemperatureCelsius);
+  syncMainTemperatureToggle();
+}
 
 function saveUserSession(username: string) {
   const now = Date.now();
@@ -304,9 +340,11 @@ function showCurrentWeatherLoading(cityName: string) {
   const windEl = document.querySelector("#currentWind");
   const updatedEl = document.querySelector("#currentUpdated");
 
+  currentMainTemperatureCelsius = null;
   if (cityEl) cityEl.textContent = cityName;
   if (locationEl) locationEl.textContent = selectedCity.location ?? "Selected city";
   if (tempEl) tempEl.textContent = "—";
+  syncMainTemperatureToggle();
   if (summaryEl) summaryEl.textContent = "Loading…";
   if (windEl) windEl.textContent = "—";
   if (updatedEl) updatedEl.textContent = "—";
@@ -376,9 +414,11 @@ function showCurrentWeatherError(cityName: string) {
   const windEl = document.querySelector("#currentWind");
   const updatedEl = document.querySelector("#currentUpdated");
 
+  currentMainTemperatureCelsius = null;
   if (cityEl) cityEl.textContent = cityName;
   if (locationEl) locationEl.textContent = selectedCity.location ?? "Selected city";
   if (tempEl) tempEl.textContent = "—";
+  syncMainTemperatureToggle();
   if (summaryEl) summaryEl.textContent = "Weather data unavailable. Try again soon.";
   if (windEl) windEl.textContent = "—";
   if (updatedEl) updatedEl.textContent = "—";
@@ -436,7 +476,8 @@ async function renderCurrentWeather(cityName: string, data: OpenMeteoForecast) {
   if (favoritesSummaryElement) favoritesSummaryElement.textContent = summary;
   if (favoritesWeatherIconElement) favoritesWeatherIconElement.textContent = weather.icon;
 
-  tempElement.textContent = `${Math.round(current.temperature_2m)}°C`;
+  currentMainTemperatureCelsius = current.temperature_2m;
+  renderMainTemperature();
   summaryElement.textContent = summary;
 
   if (windElement) {
@@ -1255,6 +1296,18 @@ function setupFavorites() {
   renderFavorites();
 }
 
+function setupMainTemperatureToggle() {
+  const toggle = document.querySelector(".temp-toggle") as HTMLButtonElement | null;
+
+  if (!toggle) return;
+
+  syncMainTemperatureToggle();
+  toggle.addEventListener("click", () => {
+    currentMainTemperatureUnit = currentMainTemperatureUnit === "C" ? "F" : "C";
+    renderMainTemperature();
+  });
+}
+
 function openAuthModal(mode: "login" | "register") {
   const modal = document.querySelector("#authModal") as HTMLElement | null;
   const tabs = document.querySelectorAll<HTMLButtonElement>(".auth-tab");
@@ -1474,5 +1527,6 @@ function loadDefaultCity() {
 loadDefaultCity();
 setupSearch();
 setupFavorites();
+setupMainTemperatureToggle();
 setupAuthModal();
 setupFortuneButton();

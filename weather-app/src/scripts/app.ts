@@ -8,6 +8,181 @@ const VANCOUVER = {
 };
 
 let selectedCity = VANCOUVER;
+let currentUser: string | null = null;
+let sessionTimeoutId: number | null = null;
+const SESSION_TIMEOUT_MS = 5 * 60 * 60 * 1000;
+
+function saveUserSession(username: string) {
+  const now = Date.now();
+  localStorage.setItem(
+    "userSession",
+    JSON.stringify({ username, lastActive: now })
+  );
+}
+
+function clearUserSession() {
+  localStorage.removeItem("userSession");
+  currentUser = null;
+}
+
+function loadUserSession() {
+  const raw = localStorage.getItem("userSession");
+  if (!raw) return;
+
+  try {
+    const session = JSON.parse(raw) as { username: string; lastActive: number };
+    if (!session.username || !session.lastActive) return;
+
+    const age = Date.now() - session.lastActive;
+    if (age > SESSION_TIMEOUT_MS) {
+      clearUserSession();
+      return;
+    }
+
+    currentUser = session.username;
+    updateGreeting();
+    resetSessionTimeout();
+  } catch {
+    clearUserSession();
+  }
+}
+
+function updateSessionActivity() {
+  const raw = localStorage.getItem("userSession");
+  if (!raw) return;
+
+  try {
+    const session = JSON.parse(raw) as { username: string; lastActive: number };
+    session.lastActive = Date.now();
+    localStorage.setItem("userSession", JSON.stringify(session));
+    resetSessionTimeout();
+  } catch {
+    clearUserSession();
+  }
+}
+
+function resetSessionTimeout() {
+  if (sessionTimeoutId) {
+    window.clearTimeout(sessionTimeoutId);
+  }
+  sessionTimeoutId = window.setTimeout(() => {
+    clearUserSession();
+    updateGreeting();
+    window.location.reload();
+  }, SESSION_TIMEOUT_MS);
+}
+
+function listenUserActivity() {
+  const events = ["click", "keydown", "mousemove", "touchstart"];
+  events.forEach((eventName) => {
+    window.addEventListener(eventName, updateSessionActivity);
+  });
+}
+
+function openGoogleSignInPopup() {
+  const popup = window.open(
+    "",
+    "google-signin",
+    "width=500,height=650,left=200,top=100"
+  );
+
+  if (!popup) {
+    alert("Unable to open Google sign-in popup.");
+    return;
+  }
+
+  const html = `<!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Google Sign In</title>
+        <style>
+          body { margin:0; font-family: Arial, sans-serif; background:#f2f2f2; display:flex; align-items:center; justify-content:center; height:100vh; }
+          .container { width: 90%; max-width: 420px; padding: 2rem; background:white; border-radius:24px; box-shadow:0 20px 60px rgba(0,0,0,0.15); }
+          h1 { margin:0 0 1rem; font-size:1.5rem; color:#202124; }
+          p { color:#5f6368; margin:0 0 1.5rem; }
+          button { width:100%; padding:0.9rem 1rem; border:none; border-radius:999px; background:#1a73e8; color:white; font-size:1rem; cursor:pointer; }
+          .secondary { margin-top:0.85rem; background:#f8f9fa; color:#202124; border:1px solid #dadce0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>Sign in with Google</h1>
+          <p>Use your Google account to continue.</p>
+          <button id="confirm">Continue as Google User</button>
+          <button class="secondary" id="cancel">Cancel</button>
+        </div>
+        <script>
+          const confirmButton = document.getElementById('confirm');
+          const cancelButton = document.getElementById('cancel');
+          confirmButton.addEventListener('click', () => {
+            window.opener.postMessage({ type: 'google-signin', username: 'GoogleUser' }, '*');
+            window.close();
+          });
+          cancelButton.addEventListener('click', () => window.close());
+        </script>
+      </body>
+    </html>`;
+
+  popup.document.write(html);
+  popup.document.close();
+}
+
+function handleGoogleSignInMessage(event: MessageEvent) {
+  if (!event.data || event.data.type !== "google-signin") return;
+  const username = event.data.username || "GoogleUser";
+  currentUser = username;
+  saveUserSession(username);
+  updateGreeting();
+  window.location.reload();
+}
+
+function sendTestEmail(email: string) {
+  if (!email) return;
+  console.log(`Sending test email to ${email}: subject='test mail', body='This is a text mail, please dont reply'.`);
+  const existing = document.querySelector(".toast-message") as HTMLElement | null;
+  if (existing) existing.remove();
+  const toast = document.createElement("div");
+  toast.className = "toast-message";
+  toast.textContent = `Test email sent to ${email}.`;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+function getTimeGreeting(): string {
+  const hour = new Date().getHours();
+
+  if (hour >= 0 && hour < 12) {
+    return "Good morning";
+  } else if (hour >= 12 && hour < 18) {
+    return "Good afternoon";
+  } else if (hour >= 18 && hour < 21) {
+    return "Good evening";
+  } else {
+    return "Good night";
+  }
+}
+
+function updateGreeting() {
+  const greetingBase = document.querySelector<HTMLElement>(".greeting-base");
+  const greetingName = document.querySelector<HTMLElement>(".greeting-name");
+  const punctuation = document.querySelector<HTMLElement>(".greeting-punctuation");
+
+  if (!greetingBase || !greetingName || !punctuation) return;
+
+  const timeGreeting = getTimeGreeting();
+
+  if (currentUser) {
+    greetingBase.textContent = timeGreeting;
+    punctuation.textContent = ",";
+    greetingName.textContent = ` ${currentUser}`;
+  } else {
+    greetingBase.textContent = timeGreeting;
+    punctuation.textContent = ".";
+    greetingName.textContent = "";
+  }
+}
 
 async function loadWeather(cityName: string, lat: number, lon: number) {
   try {
@@ -298,6 +473,197 @@ function setupFavorites() {
   renderFavorites();
 }
 
+function openAuthModal(mode: "login" | "register") {
+  const modal = document.querySelector("#authModal") as HTMLElement | null;
+  const tabs = document.querySelectorAll<HTMLButtonElement>(".auth-tab");
+  const loginPanel = document.querySelector("#loginPanel") as HTMLElement | null;
+  const registerPanel = document.querySelector("#registerPanel") as HTMLElement | null;
+
+  if (!modal || !loginPanel || !registerPanel) return;
+
+  modal.classList.remove("hidden");
+  modal.setAttribute("aria-hidden", "false");
+
+  tabs.forEach((tab) => {
+    const tabMode = tab.dataset.authMode;
+    const isActive = tabMode === mode;
+    tab.classList.toggle("active", isActive);
+  });
+
+  loginPanel.classList.toggle("auth-panel--active", mode === "login");
+  registerPanel.classList.toggle("auth-panel--active", mode === "register");
+  requestAnimationFrame(updateAuthScrollIndicator);
+}
+
+function closeAuthModal() {
+  const modal = document.querySelector("#authModal") as HTMLElement | null;
+  if (!modal) return;
+
+  modal.classList.add("hidden");
+  modal.setAttribute("aria-hidden", "true");
+}
+
+function updateAuthScrollIndicator() {
+  const content = document.querySelector(".auth-modal-content") as HTMLElement | null;
+  const indicator = document.querySelector(".auth-scroll-indicator") as HTMLElement | null;
+
+  if (!content || !indicator) return;
+
+  const scrollableHeight = content.scrollHeight - content.clientHeight;
+  if (scrollableHeight <= 0) {
+    indicator.style.opacity = "0";
+    return;
+  }
+
+  const trackHeight = content.clientHeight - 36;
+  const thumbHeight = Math.max((content.clientHeight / content.scrollHeight) * trackHeight, 40);
+  const scrollRatio = content.scrollTop / scrollableHeight;
+  const thumbTop = 18 + scrollRatio * (trackHeight - thumbHeight);
+
+  indicator.style.opacity = "1";
+  indicator.style.height = `${thumbHeight}px`;
+  indicator.style.transform = `translateY(${thumbTop}px)`;
+}
+
+function setAuthMode(mode: "login" | "register") {
+  const tabs = document.querySelectorAll<HTMLButtonElement>(".auth-tab");
+  const loginPanel = document.querySelector("#loginPanel") as HTMLElement | null;
+  const registerPanel = document.querySelector("#registerPanel") as HTMLElement | null;
+
+  if (!loginPanel || !registerPanel) return;
+
+  tabs.forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.authMode === mode);
+  });
+
+  loginPanel.classList.toggle("auth-panel--active", mode === "login");
+  registerPanel.classList.toggle("auth-panel--active", mode === "register");
+  requestAnimationFrame(updateAuthScrollIndicator);
+}
+
+function handleLoginSubmit(event: Event) {
+  event.preventDefault();
+
+  const form = event.target as HTMLFormElement;
+  const username = (form.querySelector("input[name='username']") as HTMLInputElement)?.value.trim();
+
+  if (!username) {
+    alert("Please enter a username to log in.");
+    return;
+  }
+
+  currentUser = username;
+  saveUserSession(username);
+  updateGreeting();
+  closeAuthModal();
+  window.location.reload();
+}
+
+function handleRegisterSubmit(event: Event) {
+  event.preventDefault();
+
+  const form = event.target as HTMLFormElement;
+  const username = (form.querySelector("input[name='username']") as HTMLInputElement)?.value.trim();
+  const email = (form.querySelector("input[name='email']") as HTMLInputElement)?.value.trim();
+  const password = (form.querySelector("input[name='password']") as HTMLInputElement)?.value;
+  const confirmPassword = (form.querySelector("input[name='confirmPassword']") as HTMLInputElement)?.value;
+  const wantsNotifications = (form.querySelector("input[name='notifications']") as HTMLInputElement)?.checked;
+
+  if (!username || !email || !password || !confirmPassword) {
+    alert("Please complete all fields to register.");
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    alert("Passwords do not match.");
+    return;
+  }
+
+  currentUser = username;
+  saveUserSession(username);
+  updateGreeting();
+  if (wantsNotifications) {
+    sendTestEmail(email);
+  }
+  closeAuthModal();
+  window.location.reload();
+}
+
+function setupAuthModal() {
+  const loginButton = document.querySelector(".open-auth-login") as HTMLElement | null;
+  const registerButton = document.querySelector(".open-auth-register") as HTMLElement | null;
+  const closeButtons = document.querySelectorAll("[data-close], .auth-close");
+  const modal = document.querySelector("#authModal") as HTMLElement | null;
+  const tabs = document.querySelectorAll<HTMLButtonElement>(".auth-tab");
+  const switchLinks = document.querySelectorAll<HTMLButtonElement>(".auth-link");
+  const loginForm = document.querySelector("#loginForm") as HTMLFormElement | null;
+  const registerForm = document.querySelector("#registerForm") as HTMLFormElement | null;
+
+  if (loginButton) {
+    loginButton.addEventListener("click", () => openAuthModal("login"));
+  }
+
+  if (registerButton) {
+    registerButton.addEventListener("click", () => openAuthModal("register"));
+  }
+
+  closeButtons.forEach((button) => {
+    button.addEventListener("click", closeAuthModal);
+  });
+
+  if (modal) {
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) {
+        closeAuthModal();
+      }
+    });
+  }
+
+  const modalContent = document.querySelector(".auth-modal-content") as HTMLElement | null;
+  if (modalContent) {
+    modalContent.addEventListener("scroll", updateAuthScrollIndicator);
+    window.addEventListener("resize", updateAuthScrollIndicator);
+  }
+
+  const googleButton = document.querySelector(".auth-google-button") as HTMLElement | null;
+  if (googleButton) {
+    googleButton.addEventListener("click", openGoogleSignInPopup);
+  }
+
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      if (tab.dataset.authMode === "login") {
+        setAuthMode("login");
+      } else {
+        setAuthMode("register");
+      }
+    });
+  });
+
+  switchLinks.forEach((link) => {
+    link.addEventListener("click", () => {
+      if (link.dataset.switch === "login") {
+        setAuthMode("login");
+      } else {
+        setAuthMode("register");
+      }
+    });
+  });
+
+  if (loginForm) {
+    loginForm.addEventListener("submit", handleLoginSubmit);
+  }
+
+  if (registerForm) {
+    registerForm.addEventListener("submit", handleRegisterSubmit);
+  }
+
+  window.addEventListener("message", handleGoogleSignInMessage);
+  loadUserSession();
+  updateGreeting();
+  listenUserActivity();
+}
+
 function loadDefaultCity() {
   navigator.geolocation.getCurrentPosition(
     (position) => {
@@ -316,3 +682,4 @@ function loadDefaultCity() {
 loadDefaultCity();
 setupSearch();
 setupFavorites();
+setupAuthModal();

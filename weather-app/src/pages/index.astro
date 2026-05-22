@@ -16,6 +16,18 @@ import HourlyForecast from "../components/HourlyForecast.astro";
   </head>
 
   <body>
+    <div class="site-background">
+      <video
+        id="backgroundVideo"
+        autoplay
+        muted
+        loop
+        playsinline
+      ></video>
+
+      <div class="site-background__overlay"></div>
+    </div>
+
     <main class="app">
       <section class="weather-container">
         <header class="page-header">
@@ -111,14 +123,7 @@ import HourlyForecast from "../components/HourlyForecast.astro";
           <CurrentWeather />
         </section>
 
-        <section class="forecast-section">
-          <div class="forecast-controls">
-            <div class="forecast-title">Daily Forecast</div>
-            <button class="period-button">Daily ▾</button>
-          </div>
-
-          <DailyForecast />
-        </section>
+        <DailyForecast />
 
         <HourlyForecast />
       </section>

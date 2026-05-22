@@ -1,4 +1,5 @@
 import { updateBackgroundVideo } from "./backgroundVideo";
+import { getCityImage } from "./cityImage";
 import { searchCities, type PlaceKitResult } from "./places";
 import { getWeather, type OpenMeteoForecast } from "./weather";
 import {
@@ -22,6 +23,7 @@ const VANCOUVER: SavedCity = {
 };
 
 let selectedCity: SavedCity = VANCOUVER;
+let dailyAirQuality = new Map<string, number>();
 let currentUser: string | null = null;
 let sessionTimeoutId: number | null = null;
 let draggedFavoriteIndex: number | null = null;
@@ -223,6 +225,62 @@ function isValidCoords(lat: number, lon: number): boolean {
   );
 }
 
+function getUvLabel(uv: number) {
+  if (uv <= 2) return "Low";
+  if (uv <= 5) return "Moderate";
+  if (uv <= 7) return "High";
+  return "Very High";
+}
+
+function getAirQualityLabel(aqi: number) {
+  if (aqi <= 50) return "Good";
+  if (aqi <= 100) return "Moderate";
+  return "Unhealthy";
+}
+
+function getVisibilityLabel(km: number) {
+  if (km >= 20) return "Excellent";
+  if (km >= 10) return "Good";
+  return "Low";
+}
+
+async function loadDailyAirQuality(lat: number, lon: number) {
+  dailyAirQuality.clear();
+
+  try {
+    const response = await fetch(
+      `https://air-quality-api.open-meteo.com/v1/air-quality` +
+        `?latitude=${lat}` +
+        `&longitude=${lon}` +
+        `&hourly=us_aqi` +
+        `&forecast_days=5` +
+        `&timezone=auto`
+    );
+
+    if (!response.ok) return;
+
+    const data = await response.json();
+    const groups = new Map<string, number[]>();
+
+    data.hourly?.time?.forEach((time: string, index: number) => {
+      const day = time.split("T")[0];
+      const value = data.hourly.us_aqi[index];
+
+      if (value === undefined) return;
+
+      if (!groups.has(day)) groups.set(day, []);
+      groups.get(day)?.push(value);
+    });
+
+    groups.forEach((values, day) => {
+      const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+      dailyAirQuality.set(day, Math.round(average));
+    });
+  } catch {
+    dailyAirQuality.clear();
+  }
+}
+
 function clearExtraCurrentWeatherFields() {
   const uvEl = document.querySelector("#currentUv");
   const airQualityEl = document.querySelector("#currentAirQuality");
@@ -278,6 +336,7 @@ async function loadWeather(
     }
 
     latestForecast = data;
+    await loadDailyAirQuality(lat, lon);
     await renderCurrentWeather(cityName, data);
     renderDailyForecast(data);
     renderHourlyForecast(data, data.daily.time[0]);
@@ -411,34 +470,18 @@ async function renderCurrentWeather(cityName: string, data: OpenMeteoForecast) {
   }
 
   const weather = getWeatherInfo(current.weather_code);
-  updateBackgroundVideo(current.weather_code);
   const summary = labelForWmoCode(current.weather_code);
+
+  updateBackgroundVideo(current.weather_code);
 
   cityElement.textContent = cityName;
 
-  if (locationElement) {
-    locationElement.textContent = selectedCity.location ?? "Selected city";
-  }
-
-  if (favoritesCityElement) {
-    favoritesCityElement.textContent = cityName;
-  }
-
-  if (favoritesLocationElement) {
-    favoritesLocationElement.textContent = selectedCity.location ?? "Selected city";
-  }
-
-  if (favoritesTempElement) {
-    favoritesTempElement.textContent = `${Math.round(current.temperature_2m)}°C`;
-  }
-
-  if (favoritesSummaryElement) {
-    favoritesSummaryElement.textContent = summary;
-  }
-
-  if (favoritesWeatherIconElement) {
-    favoritesWeatherIconElement.textContent = weather.icon;
-  }
+  if (locationElement) locationElement.textContent = selectedCity.location ?? "Selected city";
+  if (favoritesCityElement) favoritesCityElement.textContent = cityName;
+  if (favoritesLocationElement) favoritesLocationElement.textContent = selectedCity.location ?? "Selected city";
+  if (favoritesTempElement) favoritesTempElement.textContent = `${Math.round(current.temperature_2m)}°C`;
+  if (favoritesSummaryElement) favoritesSummaryElement.textContent = summary;
+  if (favoritesWeatherIconElement) favoritesWeatherIconElement.textContent = weather.icon;
 
   tempElement.textContent = `${Math.round(current.temperature_2m)}°C`;
   summaryElement.textContent = summary;
@@ -454,29 +497,15 @@ async function renderCurrentWeather(cityName: string, data: OpenMeteoForecast) {
     updatedElement.textContent = formatObservationTime(current.time);
   }
 
-  if (iconElement) {
-    iconElement.textContent = weather.icon;
-  }
-
-  if (statTemperatureElement) {
-    statTemperatureElement.textContent = `${Math.round(current.temperature_2m)}°C`;
-  }
-
-  if (statWindElement) {
-    statWindElement.textContent = `${Math.round(current.wind_speed_10m)} km/h`;
-  }
-
-  if (statHumidityElement) {
-    statHumidityElement.textContent = `${current.relative_humidity_2m}%`;
-  }
+  if (iconElement) iconElement.textContent = weather.icon;
+  if (statTemperatureElement) statTemperatureElement.textContent = `${Math.round(current.temperature_2m)}°C`;
+  if (statWindElement) statWindElement.textContent = `${Math.round(current.wind_speed_10m)} km/h`;
+  if (statHumidityElement) statHumidityElement.textContent = `${current.relative_humidity_2m}%`;
 
   if (statVisibilityElement) {
     const visibilityMeters = data.hourly.visibility?.[0];
-
     statVisibilityElement.textContent =
-      visibilityMeters !== undefined
-        ? `${Math.round(visibilityMeters / 1000)} km`
-        : "—";
+      visibilityMeters !== undefined ? `${Math.round(visibilityMeters / 1000)} km` : "—";
   }
 
   if (uvElement) {
@@ -505,23 +534,10 @@ async function renderCurrentWeather(cityName: string, data: OpenMeteoForecast) {
   }
 
   if (airQualityElement) {
-    try {
-      const airQualityUrl =
-        `https://air-quality-api.open-meteo.com/v1/air-quality` +
-        `?latitude=${selectedCity.lat}` +
-        `&longitude=${selectedCity.lon}` +
-        `&current=us_aqi`;
+    const todayAqi = dailyAirQuality.get(data.daily.time[0]);
 
-      const airResponse = await fetch(airQualityUrl);
-      const airData = await airResponse.json();
-
-      airQualityElement.textContent =
-        airData.current?.us_aqi !== undefined
-          ? `${airData.current.us_aqi} AQI`
-          : "—";
-    } catch {
-      airQualityElement.textContent = "Unavailable";
-    }
+    airQualityElement.textContent =
+      todayAqi !== undefined ? `${todayAqi} AQI` : "—";
   }
 
   setCurrentWeatherState("ready");
@@ -535,6 +551,27 @@ function renderDailyForecast(data: OpenMeteoForecast) {
 
   container.innerHTML = "";
 
+  const forecastPanel = document.querySelector(".forecast-panel") as HTMLElement | null;
+
+  if (forecastPanel) {
+    getCityImage(selectedCity.name).then((imageUrl) => {
+      if (!imageUrl) return;
+
+      forecastPanel.style.backgroundImage = `
+        linear-gradient(
+          145deg,
+          rgba(15, 23, 42, 0.88),
+          rgba(15, 23, 42, 0.66)
+        ),
+        url("${imageUrl}")
+      `;
+
+      forecastPanel.style.backgroundSize = "cover";
+      forecastPanel.style.backgroundPosition = "center";
+      forecastPanel.style.backgroundRepeat = "no-repeat";
+    });
+  }
+
   data.daily.time.forEach((day: string, index: number) => {
     const weather = getWeatherInfo(data.daily.weather_code[index]);
 
@@ -547,29 +584,71 @@ function renderDailyForecast(data: OpenMeteoForecast) {
 
     const date = new Date(day);
 
-    const weekday = date.toLocaleDateString("en-US", {
-      weekday: "long",
-    });
+    const weekday =
+      index === 0
+        ? "Today"
+        : date.toLocaleDateString("en-US", { weekday: "short" });
 
     const formattedDate = date.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
     });
 
-    card.innerHTML = `
-      <h3>${weekday}</h3>
+    const wind = Math.round(data.daily.wind_speed_10m_max[index]);
+    const uv = Math.round(data.daily.uv_index_max[index]);
+    const aqi = dailyAirQuality.get(day);
 
-      <p class="date">${formattedDate}</p>
+    const visibilityMeters = data.hourly.visibility?.find((_, hourlyIndex) =>
+      data.hourly.time[hourlyIndex].startsWith(day)
+    );
+
+    const visibilityKm =
+      visibilityMeters !== undefined ? Math.round(visibilityMeters / 1000) : null;
+
+    card.innerHTML = `
+      <div class="daily-day__top">
+        <h3>${weekday}</h3>
+        <p class="date">${formattedDate}</p>
+      </div>
 
       <div class="weather-icon">${weather.icon}</div>
 
+      <p class="daily-temp">
+        ${Math.round(data.daily.temperature_2m_max[index])}°
+        <span>/ ${Math.round(data.daily.temperature_2m_min[index])}°</span>
+      </p>
+
       <p class="weather-label">${weather.label}</p>
 
-      <p class="daily-temp">
-        ${Math.round(data.daily.temperature_2m_min[index])}–${Math.round(
-          data.daily.temperature_2m_max[index]
-        )}°C
-      </p>
+      <div class="daily-details">
+        <div>
+          <span>💨 Wind</span>
+          <strong>${wind} km/h</strong>
+        </div>
+
+        <div>
+  <span>💧 Humidity</span>
+  <strong>${data.current.relative_humidity_2m}%</strong>
+</div>
+
+        <div>
+          <span>🍃 Air Quality</span>
+          <strong>${aqi !== undefined ? `${aqi} AQI` : "—"}</strong>
+          <small>${aqi !== undefined ? getAirQualityLabel(aqi) : ""}</small>
+        </div>
+
+        <div>
+          <span>🔆 UV Index</span>
+          <strong>${uv}</strong>
+          <small>${getUvLabel(uv)}</small>
+        </div>
+
+        <div>
+          <span>👁️ Visibility</span>
+          <strong>${visibilityKm !== null ? `${visibilityKm} km` : "—"}</strong>
+          <small>${visibilityKm !== null ? getVisibilityLabel(visibilityKm) : ""}</small>
+        </div>
+      </div>
     `;
 
     card.addEventListener("click", () => {
@@ -578,7 +657,6 @@ function renderDailyForecast(data: OpenMeteoForecast) {
       });
 
       card.classList.add("active");
-
       renderHourlyForecast(data, day);
     });
 

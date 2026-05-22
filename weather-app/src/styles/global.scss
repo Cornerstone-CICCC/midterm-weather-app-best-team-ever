@@ -7,14 +7,20 @@
 body {
   margin: 0;
   min-height: 100vh;
+  overflow-x: hidden;
   font-family: Arial, sans-serif;
   background: #020617;
   color: white;
-  overflow-x: hidden;
 }
 
 body.modal-open {
   overflow: hidden;
+}
+
+.app {
+  position: relative;
+  z-index: 2;
+  padding: 2rem;
 }
 
 .site-background {
@@ -42,10 +48,6 @@ body.modal-open {
     linear-gradient(180deg, rgba(2, 6, 23, 0.2), rgba(2, 6, 23, 0.8)),
     radial-gradient(circle at top, rgba(59, 130, 246, 0.18), transparent 42%),
     radial-gradient(circle at bottom right, rgba(168, 85, 247, 0.12), transparent 36%);
-}
-
-.app {
-  padding: 2rem;
 }
 
 .page-header {
@@ -149,6 +151,7 @@ body.modal-open {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -159,6 +162,7 @@ body.modal-open {
     opacity: 0;
     transform: translateY(40px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -392,7 +396,9 @@ body.modal-open {
   content: "";
   position: absolute;
   inset: 0;
-  background-image: linear-gradient(180deg, rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.32) 45%), url("https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80");
+  background-image:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.32) 45%),
+    url("https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80");
   background-size: cover;
   background-position: right center;
   opacity: 0.19;
@@ -692,19 +698,27 @@ body.modal-open {
 .forecast-panel,
 .hourly-panel {
   margin-top: 2rem;
-  padding: 2.2rem;
-  border-radius: 32px;
+  padding: 2.4rem;
+  border-radius: 34px;
+  overflow: hidden;
   background:
     linear-gradient(
       145deg,
       rgba(15, 23, 42, 0.82),
       rgba(15, 23, 42, 0.48)
     );
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   border: 1px solid rgba(255, 255, 255, 0.13);
   backdrop-filter: blur(24px);
   box-shadow:
     0 30px 80px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.forecast-panel::after {
+  content: none;
 }
 
 .forecast-header,
@@ -723,8 +737,8 @@ body.modal-open {
 
 .forecast-title {
   display: flex;
-  align-items: center;
-  gap: 1rem;
+  align-items: flex-start;
+  gap: 1.2rem;
 }
 
 .forecast-title__icon,
@@ -733,9 +747,11 @@ body.modal-open {
   place-items: center;
   width: 54px;
   height: 54px;
-  border-radius: 18px;
+  flex-shrink: 0;
+  border-radius: 16px;
+  color: white;
   font-size: 1.6rem;
-  background: rgba(99, 102, 241, 0.35);
+  background: rgba(79, 70, 229, 0.45);
   box-shadow: 0 16px 32px rgba(0, 0, 0, 0.25);
 }
 
@@ -743,25 +759,50 @@ body.modal-open {
 #hourlyTitle {
   margin: 0;
   color: white;
-  font-size: clamp(2rem, 4vw, 2.7rem);
+  text-transform: uppercase;
+  font-size: clamp(2rem, 3vw, 2.7rem);
+  line-height: 1;
   font-weight: 900;
   letter-spacing: -0.04em;
 }
 
 .forecast-header p,
 .hourly-header p {
-  margin: 0.35rem 0 0;
-  color: rgba(255, 255, 255, 0.64);
-  font-size: 1.05rem;
+  margin: 0.45rem 0 0;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 1rem;
+}
+
+.forecast-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.forecast-actions button {
+  width: 58px;
+  height: 58px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  color: white;
+  background: rgba(15, 23, 42, 0.65);
+  font-size: 2.4rem;
+  font-weight: 900;
+  cursor: pointer;
+  backdrop-filter: blur(20px);
+}
+
+.forecast-actions button:last-child {
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .forecast-badge {
-  padding: 1rem 1.35rem;
+  padding: 0.85rem 1.15rem;
   border-radius: 18px;
   color: white;
-  font-size: 1.2rem;
+  font-size: 1rem;
   font-weight: 850;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.09);
   border: 1px solid rgba(255, 255, 255, 0.13);
   backdrop-filter: blur(18px);
 }
@@ -769,23 +810,20 @@ body.modal-open {
 .daily-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 1rem;
+  gap: 1.35rem;
+  align-items: stretch;
 }
 
 .daily-day {
-  min-height: 290px;
-  padding: 1.7rem 1rem;
+  min-height: 560px;
+  padding: 1.65rem 1.5rem;
+  overflow: hidden;
   border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background:
-    linear-gradient(
-      145deg,
-      rgba(15, 23, 42, 0.66),
-      rgba(15, 23, 42, 0.34)
-    );
+  text-align: left;
   color: white;
-  text-align: center;
   cursor: pointer;
+  background: rgba(15, 23, 42, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(18px);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
@@ -803,31 +841,50 @@ body.modal-open {
 }
 
 .daily-day.active {
-  border-color: rgba(56, 189, 248, 0.9);
+  border-color: rgba(139, 92, 246, 0.95);
   box-shadow:
-    0 0 0 1px rgba(56, 189, 248, 0.28),
-    0 0 34px rgba(56, 189, 248, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 0 0 1px rgba(139, 92, 246, 0.35),
+    0 0 34px rgba(139, 92, 246, 0.35);
+}
+
+.daily-day.active::after {
+  content: "";
+  display: block;
+  width: 48px;
+  height: 6px;
+  margin: 1rem auto 0;
+  border-radius: 999px;
+  background: #9333ea;
+  box-shadow: 0 0 18px rgba(147, 51, 234, 0.8);
+}
+
+.daily-day__top,
+.daily-day h3,
+.daily-day .date,
+.daily-day .weather-icon,
+.daily-day .weather-label,
+.daily-temp {
+  text-align: center;
 }
 
 .daily-day h3 {
-  margin: 0 0 0.75rem;
-  color: #a78bfa;
-  font-size: 1.05rem;
-  font-weight: 900;
+  margin: 0 0 0.35rem;
+  color: #c084fc;
+  font-size: 1rem;
+  font-weight: 950;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .daily-day .date {
-  margin: 0 0 1.2rem;
+  margin: 0 0 1.1rem;
   color: rgba(255, 255, 255, 0.68);
   font-size: 1.15rem;
 }
 
 .weather-icon {
-  margin: 1rem 0;
-  font-size: 4.4rem;
+  margin: 1.2rem 0 1rem;
+  font-size: 4rem;
   filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.35));
 }
 
@@ -842,10 +899,89 @@ body.modal-open {
 }
 
 .daily-temp {
-  margin: 1rem 0 0;
-  font-size: 2rem;
+  margin: 0.75rem 0 0.4rem;
+  font-size: 2.2rem;
   font-weight: 950;
   letter-spacing: -0.04em;
+}
+
+.daily-temp span {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 1.45rem;
+}
+
+.daily-details {
+  margin-top: 1.35rem;
+  padding-top: 1.35rem;
+  display: grid;
+  gap: 0.95rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.daily-details div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.25rem 0.75rem;
+  align-items: center;
+}
+
+.daily-details span {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.95rem;
+  font-weight: 750;
+}
+
+.daily-details strong {
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.daily-details small {
+  grid-column: 2;
+  color: #22c55e;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.forecast-legend {
+  margin-top: 2.4rem;
+  padding: 1.35rem 1.6rem;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+  border-radius: 24px;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.forecast-legend__item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.forecast-legend__icon {
+  font-size: 2.4rem;
+}
+
+.forecast-legend__item strong {
+  display: block;
+  color: white;
+  font-size: 1rem;
+}
+
+.forecast-legend__item span {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.forecast-tip {
+  margin: 1.6rem 0 0;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 1rem;
 }
 
 .hourly-panel {
@@ -953,14 +1089,6 @@ body.modal-open {
   .weather-container {
     max-width: 1180px;
   }
-
-  .daily-grid {
-    grid-template-columns: repeat(5, 1fr);
-  }
-
-  .hourly-grid {
-    grid-template-columns: repeat(8, 1fr);
-  }
 }
 
 @media (max-width: 900px) {
@@ -968,7 +1096,12 @@ body.modal-open {
     grid-template-columns: 1fr;
   }
 
-  .forecast-panel {
+  .forecast-actions {
+    display: none;
+  }
+
+  .forecast-panel,
+  .hourly-panel {
     padding: 1.5rem;
   }
 
@@ -978,18 +1111,19 @@ body.modal-open {
     gap: 0.5rem;
   }
 
-  .forecast-header h2 {
+  .forecast-header h2,
+  #hourlyTitle {
     font-size: 2rem;
   }
 
-  .daily-grid {
+  .daily-grid,
+  .forecast-legend {
     grid-template-columns: 1fr;
     gap: 1rem;
   }
 
   .daily-day {
     min-height: auto;
-    border-radius: 24px;
   }
 
   .hourly-grid {
@@ -1033,7 +1167,8 @@ body.modal-open {
     font-size: 3rem;
   }
 
-  .forecast-panel {
+  .forecast-panel,
+  .hourly-panel {
     padding: 1rem;
   }
 
@@ -1045,10 +1180,6 @@ body.modal-open {
   .daily-grid,
   .hourly-grid {
     grid-template-columns: 1fr;
-  }
-
-  .hourly-panel {
-    padding: 1rem;
   }
 
   .hourly-item:not(:last-child)::after {

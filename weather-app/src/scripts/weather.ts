@@ -18,6 +18,8 @@ export type OpenMeteoForecast = {
     uv_index_max: number[];
     sunrise: string[];
     sunset: string[];
+    wind_speed_10m_max: number[];
+    wind_direction_10m_dominant: number[];
   };
 
   hourly: {
@@ -37,7 +39,7 @@ export async function getWeather(
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
     `&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,weather_code` +
     `&hourly=temperature_2m,weather_code,precipitation_probability,visibility` +
-    `&daily=temperature_2m_max,temperature_2m_min,weather_code,uv_index_max,sunrise,sunset` +
+    `&daily=temperature_2m_max,temperature_2m_min,weather_code,uv_index_max,sunrise,sunset,wind_speed_10m_max,wind_direction_10m_dominant` +
     `&forecast_days=5&timezone=auto`;
 
   const response = await fetch(url);

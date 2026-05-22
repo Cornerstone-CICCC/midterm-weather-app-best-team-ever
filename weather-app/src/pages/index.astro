@@ -129,6 +129,13 @@ import HourlyForecast from "../components/HourlyForecast.astro";
       </section>
     </main>
 
+    <div class="fortune-widget" aria-live="polite">
+      <button id="fortuneButton" class="fortune-button" type="button">
+        Today's Fortune
+      </button>
+      <p id="fortuneResult" class="fortune-result" hidden></p>
+    </div>
+
     <script>
       import "../scripts/app.ts";
     </script>

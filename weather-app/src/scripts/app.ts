@@ -1,5 +1,6 @@
 import { updateBackgroundVideo } from "./backgroundVideo";
 import { getCityImage } from "./cityImage";
+import { setupFortuneButton, updateLuckyForecast } from "./lucky";
 import { searchCities, type PlaceKitResult } from "./places";
 import { getWeather, type OpenMeteoForecast } from "./weather";
 import {
@@ -334,6 +335,7 @@ async function loadWeather(
       throw new Error("Unexpected weather API response");
     }
 
+    updateLuckyForecast(data, cityName);
     await loadDailyAirQuality(lat, lon);
     await renderCurrentWeather(cityName, data);
     renderDailyForecast(data);
@@ -1471,3 +1473,4 @@ loadDefaultCity();
 setupSearch();
 setupFavorites();
 setupAuthModal();
+setupFortuneButton();
